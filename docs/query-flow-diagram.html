@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Query Flow Diagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --border-subtle: #1e1e2e;
+
+            --frontend-primary: #00d4ff;
+            --frontend-glow: rgba(0, 212, 255, 0.3);
+            --frontend-bg: rgba(0, 212, 255, 0.08);
+
+            --api-primary: #00ff88;
+            --api-glow: rgba(0, 255, 136, 0.3);
+            --api-bg: rgba(0, 255, 136, 0.08);
+
+            --rag-primary: #a855f7;
+            --rag-glow: rgba(168, 85, 247, 0.3);
+            --rag-bg: rgba(168, 85, 247, 0.08);
+
+            --search-primary: #ff6b35;
+            --search-glow: rgba(255, 107, 53, 0.3);
+            --search-bg: rgba(255, 107, 53, 0.08);
+
+            --text-primary: #e4e4e7;
+            --text-secondary: #71717a;
+            --text-muted: #52525b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--frontend-primary), var(--rag-primary), var(--search-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 12px currentColor;
+        }
+
+        .legend-dot.frontend { background: var(--frontend-primary); color: var(--frontend-primary); }
+        .legend-dot.api { background: var(--api-primary); color: var(--api-primary); }
+        .legend-dot.rag { background: var(--rag-primary); color: var(--rag-primary); }
+        .legend-dot.search { background: var(--search-primary); color: var(--search-primary); }
+
+        /* Flow container */
+        .flow {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+
+        /* Section styles */
+        .section {
+            position: relative;
+            padding: 32px;
+            border-radius: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 0;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 16px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .section.frontend {
+            border-color: rgba(0, 212, 255, 0.3);
+            background: linear-gradient(135deg, var(--frontend-bg), transparent 60%);
+        }
+        .section.frontend::before {
+            box-shadow: inset 0 0 60px var(--frontend-glow);
+        }
+
+        .section.api {
+            border-color: rgba(0, 255, 136, 0.3);
+            background: linear-gradient(135deg, var(--api-bg), transparent 60%);
+        }
+        .section.api::before {
+            box-shadow: inset 0 0 60px var(--api-glow);
+        }
+
+        .section.rag {
+            border-color: rgba(168, 85, 247, 0.3);
+            background: linear-gradient(135deg, var(--rag-bg), transparent 60%);
+        }
+        .section.rag::before {
+            box-shadow: inset 0 0 60px var(--rag-glow);
+        }
+
+        .section.search {
+            border-color: rgba(255, 107, 53, 0.3);
+            background: linear-gradient(135deg, var(--search-bg), transparent 60%);
+        }
+        .section.search::before {
+            box-shadow: inset 0 0 60px var(--search-glow);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .frontend .section-icon { background: var(--frontend-bg); border: 1px solid var(--frontend-primary); }
+        .api .section-icon { background: var(--api-bg); border: 1px solid var(--api-primary); }
+        .rag .section-icon { background: var(--rag-bg); border: 1px solid var(--rag-primary); }
+        .search .section-icon { background: var(--search-bg); border: 1px solid var(--search-primary); }
+
+        .section-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .frontend .section-title { color: var(--frontend-primary); }
+        .api .section-title { color: var(--api-primary); }
+        .rag .section-title { color: var(--rag-primary); }
+        .search .section-title { color: var(--search-primary); }
+
+        .section-file {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: auto;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .step:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .frontend .step-number { background: var(--frontend-primary); color: var(--bg-dark); }
+        .api .step-number { background: var(--api-primary); color: var(--bg-dark); }
+        .rag .step-number { background: var(--rag-primary); color: var(--bg-dark); }
+        .search .step-number { background: var(--search-primary); color: var(--bg-dark); }
+
+        .step-text {
+            color: var(--text-primary);
+        }
+
+        .step-text code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .frontend .step-text code { color: var(--frontend-primary); }
+        .api .step-text code { color: var(--api-primary); }
+        .rag .step-text code { color: var(--rag-primary); }
+        .search .step-text code { color: var(--search-primary); }
+
+        /* Connectors */
+        .connector {
+            display: flex;
+            justify-content: center;
+            padding: 8px 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        .connector-line {
+            width: 3px;
+            height: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .connector-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, var(--from-color), var(--to-color));
+            opacity: 0.4;
+        }
+
+        .connector-line::after {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, transparent, white, transparent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0% { top: -100%; }
+            100% { top: 200%; }
+        }
+
+        .connector-arrow {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid;
+            margin-top: -1px;
+        }
+
+        .connector.frontend-to-api .connector-line {
+            --from-color: var(--frontend-primary);
+            --to-color: var(--api-primary);
+        }
+        .connector.frontend-to-api .connector-arrow { border-top-color: var(--api-primary); }
+
+        .connector.api-to-rag .connector-line {
+            --from-color: var(--api-primary);
+            --to-color: var(--rag-primary);
+        }
+        .connector.api-to-rag .connector-arrow { border-top-color: var(--rag-primary); }
+
+        .connector.rag-to-search .connector-line {
+            --from-color: var(--rag-primary);
+            --to-color: var(--search-primary);
+        }
+        .connector.rag-to-search .connector-arrow { border-top-color: var(--search-primary); }
+
+        .connector.search-to-rag .connector-line {
+            --from-color: var(--search-primary);
+            --to-color: var(--rag-primary);
+        }
+        .connector.search-to-rag .connector-arrow { border-top-color: var(--rag-primary); }
+
+        .connector.rag-to-api .connector-line {
+            --from-color: var(--rag-primary);
+            --to-color: var(--api-primary);
+        }
+        .connector.rag-to-api .connector-arrow { border-top-color: var(--api-primary); }
+
+        .connector.api-to-frontend .connector-line {
+            --from-color: var(--api-primary);
+            --to-color: var(--frontend-primary);
+        }
+        .connector.api-to-frontend .connector-arrow { border-top-color: var(--frontend-primary); }
+
+        /* Return flow indicator */
+        .return-section {
+            border-style: dashed;
+            opacity: 0.85;
+        }
+
+        .return-label {
+            position: absolute;
+            right: 32px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .legend {
+                gap: 16px;
+            }
+
+            .section {
+                padding: 20px;
+            }
+
+            .steps {
+                flex-direction: column;
+            }
+
+            .section-file {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RAG Query Flow</h1>
+            <p class="subtitle">How a user query traverses the system</p>
+        </header>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-dot frontend"></div>
+                <span>Frontend</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot api"></div>
+                <span>API Layer</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot rag"></div>
+                <span>RAG Core</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot search"></div>
+                <span>Search</span>
+            </div>
+        </div>
+
+        <div class="flow">
+            <!-- Frontend -->
+            <div class="section frontend">
+                <div class="section-header">
+                    <div class="section-icon">🖥️</div>
+                    <div class="section-title">Frontend</div>
+                    <div class="section-file">script.js</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">User types query</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text"><code>sendMessage()</code> triggered</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text"><code>POST /api/query</code> with session_id</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector frontend-to-api">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- API -->
+            <div class="section api">
+                <div class="section-header">
+                    <div class="section-icon">⚡</div>
+                    <div class="section-title">FastAPI</div>
+                    <div class="section-file">app.py</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-text"><code>query_documents()</code> endpoint</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">5</div>
+                        <div class="step-text">Create session if needed</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">6</div>
+                        <div class="step-text">Call <code>rag_system.query()</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector api-to-rag">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- RAG System -->
+            <div class="section rag">
+                <div class="section-header">
+                    <div class="section-icon">🧠</div>
+                    <div class="section-title">RAG System</div>
+                    <div class="section-file">rag_system.py + ai_generator.py</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">7</div>
+                        <div class="step-text">Get conversation history</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">8</div>
+                        <div class="step-text">Build prompt + system message</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">9</div>
+                        <div class="step-text">Call Claude API with tools</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">10</div>
+                        <div class="step-text">Check <code>stop_reason == "tool_use"</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector rag-to-search">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="section search">
+                <div class="section-header">
+                    <div class="section-icon">🔍</div>
+                    <div class="section-title">Search Layer</div>
+                    <div class="section-file">search_tools.py + vector_store.py</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">11</div>
+                        <div class="step-text">Execute <code>search_course_content</code></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">12</div>
+                        <div class="step-text">Resolve fuzzy course names</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">13</div>
+                        <div class="step-text">Query ChromaDB with filters</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">14</div>
+                        <div class="step-text">Format results + track sources</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector search-to-rag">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- RAG Return -->
+            <div class="section rag return-section">
+                <span class="return-label">Return Flow</span>
+                <div class="section-header">
+                    <div class="section-icon">🧠</div>
+                    <div class="section-title">RAG System</div>
+                    <div class="section-file">ai_generator.py</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">15</div>
+                        <div class="step-text">Send tool results to Claude</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">16</div>
+                        <div class="step-text">Claude generates final response</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">17</div>
+                        <div class="step-text">Extract sources from tool manager</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">18</div>
+                        <div class="step-text">Update session history</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector rag-to-api">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- API Return -->
+            <div class="section api return-section">
+                <div class="section-header">
+                    <div class="section-icon">⚡</div>
+                    <div class="section-title">FastAPI</div>
+                    <div class="section-file">app.py</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">19</div>
+                        <div class="step-text">Build <code>QueryResponse</code></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">20</div>
+                        <div class="step-text">Return { answer, sources, session_id }</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="connector api-to-frontend">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="connector-line"></div>
+                    <div class="connector-arrow"></div>
+                </div>
+            </div>
+
+            <!-- Frontend Return -->
+            <div class="section frontend return-section">
+                <div class="section-header">
+                    <div class="section-icon">🖥️</div>
+                    <div class="section-title">Frontend</div>
+                    <div class="section-file">script.js</div>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">21</div>
+                        <div class="step-text">Parse JSON response</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">22</div>
+                        <div class="step-text">Render markdown with <code>marked.js</code></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">23</div>
+                        <div class="step-text">Display collapsible sources</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

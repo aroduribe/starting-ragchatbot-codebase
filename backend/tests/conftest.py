@@ -3,12 +3,16 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 import sys
 import os
 
 # Add backend to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
 
 # Mock response classes to simulate Anthropic API responses
@@ -116,3 +120,123 @@ def mock_config():
     config.CHROMA_PATH = "./test_chroma_db"
     config.EMBEDDING_MODEL = "all-MiniLM-L6-v2"
     return config
+
+
+# ============================================================================
+# API Testing Fixtures
+# ============================================================================
+
+# Pydantic models for API tests (mirrors app.py models)
+class QueryRequest(BaseModel):
+    """Request model for course queries"""
+    query: str
+    session_id: Optional[str] = None
+
+
+class QueryResponse(BaseModel):
+    """Response model for course queries"""
+    answer: str
+    sources: List[str]
+    session_id: str
+
+
+class CourseStats(BaseModel):
+    """Response model for course statistics"""
+    total_courses: int
+    course_titles: List[str]
+
+
+@pytest.fixture
+def mock_rag_system():
+    """Create a mock RAGSystem for API tests"""
+    mock_rag = MagicMock()
+    mock_rag.query.return_value = ("Test answer about the course", ["Source 1", "Source 2"])
+    mock_rag.get_course_analytics.return_value = {
+        "total_courses": 3,
+        "course_titles": ["Course A", "Course B", "Course C"]
+    }
+    mock_rag.session_manager = MagicMock()
+    mock_rag.session_manager.create_session.return_value = "test-session-123"
+    mock_rag.session_manager.clear_session = MagicMock()
+    return mock_rag
+
+
+def create_test_app(mock_rag_system):
+    """
+    Create a FastAPI test app with endpoints defined inline.
+    This avoids importing app.py which mounts static files that don't exist in tests.
+    """
+    app = FastAPI(title="Test RAG API")
+
+    # Store the mock RAG system in app state
+    app.state.rag_system = mock_rag_system
+
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        """Process a query and return response with sources"""
+        try:
+            rag = app.state.rag_system
+            session_id = request.session_id
+            if not session_id:
+                session_id = rag.session_manager.create_session()
+
+            answer, sources = rag.query(request.query, session_id)
+
+            return QueryResponse(
+                answer=answer,
+                sources=sources,
+                session_id=session_id
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        """Get course analytics and statistics"""
+        try:
+            rag = app.state.rag_system
+            analytics = rag.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/api/session/{session_id}")
+    async def delete_session(session_id: str):
+        """Delete a session and clear its history"""
+        rag = app.state.rag_system
+        rag.session_manager.clear_session(session_id)
+        return {"status": "ok"}
+
+    @app.get("/")
+    async def root():
+        """Health check endpoint"""
+        return {"status": "healthy", "service": "RAG API"}
+
+    return app
+
+
+@pytest.fixture
+def test_app(mock_rag_system):
+    """Create a test FastAPI app with mocked dependencies"""
+    return create_test_app(mock_rag_system)
+
+
+@pytest.fixture
+def test_client(test_app):
+    """Create a TestClient for the test app"""
+    return TestClient(test_app)
+
+
+@pytest.fixture
+def sample_query_request():
+    """Sample query request data"""
+    return {"query": "What is MCP?", "session_id": None}
+
+
+@pytest.fixture
+def sample_query_request_with_session():
+    """Sample query request with existing session"""
+    return {"query": "Tell me more about that", "session_id": "existing-session-456"}
